@@ -1,0 +1,22 @@
+Total Revenue = SUM(sales_detail[revenue])
+
+Orders = DISTINCTCOUNT(sales_detail[order_id])
+
+Customers = DISTINCTCOUNT(sales_detail[customer_id])
+
+Average Order Value = DIVIDE([Total Revenue], [Orders])
+
+Repeat Customers =
+COUNTROWS(
+    FILTER(
+        VALUES(sales_detail[customer_id]),
+        CALCULATE(DISTINCTCOUNT(sales_detail[order_id])) > 1
+    )
+)
+
+Previous Month Revenue =
+CALCULATE([Total Revenue], DATEADD('Date'[Date], -1, MONTH))
+
+Month on Month % =
+DIVIDE([Total Revenue] - [Previous Month Revenue], [Previous Month Revenue])
+

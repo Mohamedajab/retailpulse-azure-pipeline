@@ -1,0 +1,7 @@
+customer_id,customer_name,email,region,updated_at
+C001,Aisha Khan,aisha@example.com,North,2025-01-02T09:00:00
+C002,Tom Hughes,tom@example.com,South,2025-01-04T10:00:00
+C003,Maya Patel,maya@example.com,London,2025-01-05T11:00:00
+C004,Daniel Reed,daniel@example.com,,2025-01-06T12:00:00
+C002,Tom Hughes,tom.hughes@example.com,South,2025-02-01T10:00:00
+
