@@ -9,10 +9,10 @@ from __future__ import annotations
 import argparse
 import csv
 from collections import Counter, defaultdict
-from datetime import date, datetime
+from collections.abc import Iterable
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw"
@@ -56,12 +56,12 @@ def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path 
         try:
             quantity = int(row["quantity"])
             unit_price = Decimal(row["unit_price"])
-            datetime.strptime(row["order_date"], "%Y-%m-%d")
+            date.fromisoformat(row["order_date"])
             if quantity <= 0 or unit_price < 0:
                 reasons.append("non_positive_quantity_or_negative_price")
         except (ValueError, InvalidOperation):
             reasons.append("invalid_numeric_or_date_value")
-            quantity, unit_price = 0, Decimal("0")
+            quantity, unit_price = 0, Decimal(0)
         if row["customer_id"] not in customer_by_id:
             reasons.append("unknown_customer")
         if row["product_id"] not in product_by_id:
@@ -138,4 +138,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
