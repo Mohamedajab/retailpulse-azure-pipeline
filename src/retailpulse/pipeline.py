@@ -57,8 +57,10 @@ def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path 
             quantity = int(row["quantity"])
             unit_price = Decimal(row["unit_price"])
             date.fromisoformat(row["order_date"])
-            if quantity <= 0 or unit_price < 0:
+            if quantity <= 0 or not unit_price.is_finite() or unit_price < 0:
                 reasons.append("non_positive_quantity_or_negative_price")
+            else:
+                revenue = (unit_price * quantity).quantize(Decimal("0.01"))
         except (ValueError, InvalidOperation):
             reasons.append("invalid_numeric_or_date_value")
             quantity, unit_price = 0, Decimal(0)
@@ -72,7 +74,6 @@ def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path 
 
         customer = customer_by_id[row["customer_id"]]
         product = product_by_id[row["product_id"]]
-        revenue = (unit_price * quantity).quantize(Decimal("0.01"))
         accepted.append(
             {
                 "order_id": row["order_id"],
@@ -94,7 +95,9 @@ def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path 
         "region", "product_id", "product_name", "category", "quantity", "revenue",
     ]
     write_csv(curated_dir / "sales_detail.csv", accepted, sales_fields)
-    write_csv(rejected_dir / "orders.csv", rejected, list(orders[0]) + ["rejection_reason"])
+    with (raw_dir / "orders.csv").open(newline="", encoding="utf-8") as handle:
+        order_fields = csv.DictReader(handle).fieldnames or []
+    write_csv(rejected_dir / "orders.csv", rejected, order_fields + ["rejection_reason"])
 
     monthly: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
     customer_orders: Counter[str] = Counter()

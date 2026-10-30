@@ -1,6 +1,7 @@
 """Azure Databricks/Synapse PySpark job for the silver and gold layers."""
 
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 

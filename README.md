@@ -51,3 +51,7 @@ The repository does not pretend a `.pbix` file can be meaningfully reviewed in s
 control. It keeps the semantic measures, model guidance and generated datasets visible;
 the visual report can be built from those assets without hidden transformation logic.
 
+The local Python runner is the tested demonstration. The PySpark file is an Azure-shaped
+prototype, not a deployed or tested Azure pipeline: it does not yet write quarantined rows
+or the product-popularity output produced by the local runner.
+
