@@ -51,3 +51,21 @@ The repository does not pretend a `.pbix` file can be meaningfully reviewed in s
 control. It keeps the semantic measures, model guidance and generated datasets visible;
 the visual report can be built from those assets without hidden transformation logic.
 
+The Spark runner writes sales detail, quarantined orders with reasons, monthly regional
+sales, product popularity and reconciled run metrics. It accepts the same CSV filenames as
+the local runner. On Databricks use Delta (the default); for local execution with Spark 4
+and Java 17 or 21, use Parquet:
+
+```bash
+python spark_jobs/curate_retail.py data/raw output/spark --format parquet
+```
+
+## View the report
+
+Run the local pipeline, then `python scripts/build_report.py`. Open
+[the standalone report](docs/report.html) in a browser. It contains sample sales,
+product popularity and reconciliation figures; regenerate it after changing inputs.
+Azure deployment requires your storage locations, identities and a Delta-enabled runtime.
+
+On Windows, Spark file writes additionally require Hadoop Windows binaries; use the
+standard-library local runner for the interview demo. CI verifies Spark Parquet writes on Linux.
