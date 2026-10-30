@@ -11,7 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
-spark = ["pyspark>=3.5"]
+spark = ["pyspark>=4.0,<4.1"]
 
 [project.scripts]
 retailpulse = "retailpulse.pipeline:main"
