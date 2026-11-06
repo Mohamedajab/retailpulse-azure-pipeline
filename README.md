@@ -1,9 +1,8 @@
 # RetailPulse — Azure retail data pipeline
 
-RetailPulse turns three untidy retail extracts into small, dependable reporting tables.
-It includes a lightweight local runner for review and CI, plus a PySpark job shaped for
-Azure Databricks or Synapse. Bad orders are quarantined instead of disappearing, and each
-run publishes counts that reconcile back to the source.
+RetailPulse reads customer, product and order CSV files and builds sales reports.
+It has a local Python runner and a PySpark job for Azure Databricks or Synapse.
+Rejected orders are saved with a reason, and each run reports the input and output counts.
 
 ## What is here
 
@@ -26,7 +25,7 @@ pytest -q
 The sample deliberately contains stale duplicates, a missing region, an unknown customer
 and a negative quantity. Inspect `data/curated/` and `data/rejected/` after the run.
 
-## Production path
+## Azure setup
 
 Data Factory lands dated files in ADLS bronze and invokes
 `spark_jobs/curate_retail.py`. Delta tables in silver retain typed detail; gold contains
@@ -42,14 +41,13 @@ the report-shaped aggregations. See [the architecture](docs/architecture.md) and
 | orders | `order_id` | date, customer, product, quantity, unit price |
 
 An order is accepted only when its date and numeric fields parse, quantity is positive,
-price is non-negative, and both foreign keys resolve. The last record received for a
-business key wins within a batch.
+price is non-negative, and both foreign keys resolve. For duplicate business keys, the row with the newest
+valid `updated_at` is kept. The tie rules are described below.
 
 ## Deliberate limits
 
-The repository does not pretend a `.pbix` file can be meaningfully reviewed in source
-control. It keeps the semantic measures, model guidance and generated datasets visible;
-the visual report can be built from those assets without hidden transformation logic.
+Power BI measures, model notes and sample datasets are included. A `.pbix` file is
+not included; use the notes and generated tables to build the dashboard.
 
 The Spark runner writes sales detail, quarantined orders with reasons, monthly regional
 sales, product popularity and reconciled run metrics. It accepts the same CSV filenames as
@@ -68,21 +66,20 @@ product popularity and reconciliation figures; regenerate it after changing inpu
 Azure deployment requires your storage locations, identities and a Delta-enabled runtime.
 
 On Windows, Spark file writes additionally require Hadoop Windows binaries; use the
-standard-library local runner for the interview demo. CI verifies Spark Parquet writes on Linux.
+local Python runner instead. CI checks Spark Parquet writes on Linux.
+
 ## Duplicate selection and limits
 
-Both runners validate **every** `updated_at` before selecting the newest record
+Both runners check every `updated_at` before selecting the newest record
 per business key. ISO timestamps must include seconds (up to six fractional
 digits); timezone-free values mean UTC and offsets are normalised to UTC.
 Missing or invalid timestamps fail the run, even on superseded rows. Equal
 timestamps select the lexicographically greatest tuple of remaining source
 values, in alphabetical column-name order; null/empty values compare as empty
-strings. The shared parser prevents different timestamp interpretations.
+strings. Both runners use the same parser.
 
 `source_orders = accepted_orders + rejected_orders + order_duplicates_removed`.
 The broader `duplicate_records_removed` also includes customer/product duplicates.
-Timestamp and tie selection are covered in local and Linux Spark tests. This is
-not complete local/Spark parity: local prices use Python Decimal and quantise
-after multiplication; Spark casts to `decimal(12,2)` before multiplication and
-has different overflow/rounding limits. Aggregation/output ordering can differ.
-
+Local and Linux Spark tests cover timestamps and tied rows. Prices can still
+differ: the local runner rounds Python Decimal values after multiplication, while
+Spark casts to `decimal(12,2)` first. Rounding, overflow and output order can differ.
