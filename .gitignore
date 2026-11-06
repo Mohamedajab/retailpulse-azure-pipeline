@@ -8,3 +8,4 @@ data/rejected/*.csv
 !data/curated/.gitkeep
 !data/rejected/.gitkeep
 
+*.egg-info/

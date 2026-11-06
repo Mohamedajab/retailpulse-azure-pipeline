@@ -4,11 +4,23 @@ import argparse
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.types import StringType
 from pyspark.sql.window import Window
+
+from retailpulse.timestamps import normalise_timestamp, tie_columns
 
 
 def latest(df, key, timestamp_col):
-    window = Window.partitionBy(key).orderBy(F.col(timestamp_col).desc())
+    if timestamp_col != "updated_at":
+        raise ValueError("The duplicate selection contract requires updated_at")
+    normalise = F.udf(normalise_timestamp, StringType())
+    df = df.withColumn(timestamp_col, normalise(F.col(timestamp_col)))
+    # Force validation of every source row, including rows later superseded by a duplicate.
+    df.agg(F.min(timestamp_col)).collect()
+    window = Window.partitionBy(key).orderBy(
+        F.col(timestamp_col).desc(),
+        *(F.coalesce(F.col(c), F.lit("")).desc() for c in tie_columns(df.columns, key)),
+    )
     return df.withColumn("_rank", F.row_number().over(window)).filter("_rank = 1").drop("_rank")
 
 
@@ -67,6 +79,7 @@ def run(raw_uri, curated_uri, output_format="delta"):
         "rejected_orders": rejected.count(),
         "duplicate_records_removed": sum(df.count() - latest(df, key, "updated_at").count()
             for df, key in zip(inputs, ("customer_id", "product_id", "order_id"))),
+        "order_duplicates_removed": inputs[2].count() - latest(inputs[2], "order_id", "updated_at").count(),
         "repeat_customers": sales.groupBy("customer_id").count().filter("count > 1").count(),
     }
     outputs["pipeline_metrics"] = spark.createDataFrame([metrics])

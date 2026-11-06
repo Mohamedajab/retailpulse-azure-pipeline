@@ -69,3 +69,20 @@ Azure deployment requires your storage locations, identities and a Delta-enabled
 
 On Windows, Spark file writes additionally require Hadoop Windows binaries; use the
 standard-library local runner for the interview demo. CI verifies Spark Parquet writes on Linux.
+## Duplicate selection and limits
+
+Both runners validate **every** `updated_at` before selecting the newest record
+per business key. ISO timestamps must include seconds (up to six fractional
+digits); timezone-free values mean UTC and offsets are normalised to UTC.
+Missing or invalid timestamps fail the run, even on superseded rows. Equal
+timestamps select the lexicographically greatest tuple of remaining source
+values, in alphabetical column-name order; null/empty values compare as empty
+strings. The shared parser prevents different timestamp interpretations.
+
+`source_orders = accepted_orders + rejected_orders + order_duplicates_removed`.
+The broader `duplicate_records_removed` also includes customer/product duplicates.
+Timestamp and tie selection are covered in local and Linux Spark tests. This is
+not complete local/Spark parity: local prices use Python Decimal and quantise
+after multiplication; Spark casts to `decimal(12,2)` before multiplication and
+has different overflow/rounding limits. Aggregation/output ordering can differ.
+
