@@ -14,6 +14,8 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from .timestamps import normalise_timestamp, tie_columns
+
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw"
 CURATED = ROOT / "data" / "curated"
@@ -34,11 +36,16 @@ def write_csv(path: Path, rows: Iterable[dict[str, object]], fields: list[str]) 
 
 
 def deduplicate(rows: list[dict[str, str]], key: str) -> tuple[list[dict[str, str]], int]:
-    """Keep the last record for a business key, matching the batch overwrite rule."""
+    """Keep newest UTC updated_at; equal times choose lexicographically greatest source values."""
     result: dict[str, dict[str, str]] = {}
+    columns = tie_columns({column for row in rows for column in row}, key)
+    def rank(row):
+        return (row["updated_at"], *(row.get(column) or "" for column in columns))
     for row in rows:
-        result[row[key]] = row
-    return list(result.values()), len(rows) - len(result)
+        row = {**row, "updated_at": normalise_timestamp(row.get("updated_at"))}
+        if row[key] not in result or rank(row) > rank(result[row[key]]):
+            result[row[key]] = row
+    return [result[k] for k in sorted(result)], len(rows) - len(result)
 
 
 def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path = REJECTED) -> dict[str, int]:
@@ -123,6 +130,7 @@ def curate(raw_dir: Path = RAW, curated_dir: Path = CURATED, rejected_dir: Path 
         "accepted_orders": len(accepted),
         "rejected_orders": len(rejected),
         "duplicate_records_removed": customer_dupes + product_dupes + order_dupes,
+        "order_duplicates_removed": order_dupes,
         "repeat_customers": sum(count > 1 for count in customer_orders.values()),
     }
     write_csv(curated_dir / "pipeline_metrics.csv", [metrics], list(metrics))
